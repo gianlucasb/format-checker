@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# OS
+.DS_Store
+
+# Local editor config
+.claude/
+
+# Output & scratch dirs from runs
+out/
+out_*/
+arxiv_sample/
+
+# All PDFs except the synthetic test fixtures
+*.pdf
+!tests/fixtures/*.pdf

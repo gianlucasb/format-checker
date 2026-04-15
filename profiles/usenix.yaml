@@ -1,0 +1,29 @@
+name: "USENIX (letter, 2-column)"
+page:
+  size: letter
+  max_body_pages: 13
+  max_total_pages: null
+  refs_count_toward_body: false
+  appendix_counts_toward_body: false
+text_block:
+  top_margin: 72
+  bottom_margin: 72
+  left_margin: 72
+  right_margin: 72
+  columns: 2
+  column_gap: 18
+fonts:
+  body:
+    families: ["Times", "TimesNewRoman", "NimbusRomNo9L", "Nimbus Roman"]
+    min_size: 9.5
+    max_size: 10.5
+  caption:
+    min_size: 8.0
+tolerance_pt: 3
+anonymization:
+  required: true
+required_sections:
+  - name: "Ethics Considerations"
+    patterns: ["ethics considerations?", "ethical considerations?"]
+  - name: "Open Science"
+    patterns: ["open science", "artifact availability", "availability"]

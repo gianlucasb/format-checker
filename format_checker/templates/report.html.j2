@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{{ report.pdf_path.name }} — format check</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 2em; color: #222; }
+  h1 { margin-bottom: 0.2em; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; color: white; font-size: 0.9em; }
+  .pass { background: #2a9d3f; }
+  .warn { background: #e08e00; }
+  .fail { background: #c62828; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border-bottom: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 0.9em; vertical-align: top; }
+  th { background: #f5f5f5; }
+  .sev-error { color: #c62828; font-weight: 600; }
+  .sev-warning { color: #e08e00; font-weight: 600; }
+  .sev-info { color: #666; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1em; }
+  .grid figure { margin: 0; border: 1px solid #ddd; padding: 6px; }
+  .grid img { width: 100%; height: auto; display: block; }
+  .meta { color: #555; font-size: 0.9em; }
+  .legend span { display: inline-block; margin-right: 1em; }
+  .legend i { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: 4px; }
+</style>
+</head>
+<body>
+<p><a href="../index.html">← batch index</a></p>
+<h1>{{ report.pdf_path.name }} <span class="badge {{ report.status }}">{{ report.status | upper }}</span></h1>
+<p class="meta">
+  Profile: <b>{{ report.profile_name }}</b> ·
+  Pages: {{ report.page_count }}
+  (body {{ report.classification.body | length }},
+  refs {{ report.classification.references | length }},
+  appendix {{ report.classification.appendix | length }}) ·
+  Body font: {{ report.body_font or "?" }} @ {{ report.body_font_size }}pt
+</p>
+<p class="legend">
+  <span><i style="background:#00aa00"></i>expected text block</span>
+  <span><i style="background:#dc1414"></i>font issue</span>
+  <span><i style="background:#f08c00"></i>geometry issue</span>
+</p>
+
+{% if issue_groups %}
+<h2>Issues ({{ report.n_errors }} error, {{ report.n_warnings }} warning)</h2>
+{% for label, key, items in issue_groups %}
+<h3 id="cat-{{ key }}">{{ label }}
+  <span class="meta">({{ items | length }})</span></h3>
+<table>
+  <tr><th>Severity</th><th>Check</th><th>Page</th><th>Message</th><th>Expected</th><th>Actual</th></tr>
+  {% for issue in items %}
+  <tr>
+    <td class="sev-{{ issue.severity }}">{{ issue.severity }}</td>
+    <td>{{ issue.check }}</td>
+    <td>{{ issue.page or "" }}</td>
+    <td>{{ issue.message }}</td>
+    <td>{{ issue.expected }}</td>
+    <td>{{ issue.actual }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endfor %}
+{% else %}
+<p><b>No issues detected.</b></p>
+{% endif %}
+
+<h2>Rendered pages</h2>
+<div class="grid">
+  {% for path in report.rendered_pages %}
+  <figure>
+    <img src="{{ path.name }}" alt="page">
+    <figcaption>{{ path.name }}</figcaption>
+  </figure>
+  {% endfor %}
+</div>
+</body>
+</html>

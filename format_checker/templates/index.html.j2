@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Format check — batch report</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 2em; color: #222; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border-bottom: 1px solid #ddd; padding: 8px 10px; text-align: left; }
+  th { background: #f5f5f5; cursor: pointer; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; color: white; font-size: 0.8em; }
+  .pass { background: #2a9d3f; }
+  .warn { background: #e08e00; }
+  .fail { background: #c62828; }
+  .meta { color: #666; font-size: 0.9em; }
+  .filters button { margin-right: 6px; padding: 4px 10px; }
+</style>
+</head>
+<body>
+<h1>Format check — batch report</h1>
+<p class="meta">Profile: <b>{{ profile_name }}</b> · {{ reports | length }} papers</p>
+<p class="filters">
+  <button onclick="filter('all')">all</button>
+  <button onclick="filter('fail')">fail</button>
+  <button onclick="filter('warn')">warn</button>
+  <button onclick="filter('pass')">pass</button>
+</p>
+<table id="t">
+  <thead><tr>
+    <th>Status</th><th>Paper</th><th>Pages</th><th>Body font</th><th>Errors</th><th>Warnings</th>
+  </tr></thead>
+  <tbody>
+  {% for r in reports %}
+  <tr data-status="{{ r.status }}">
+    <td><span class="badge {{ r.status }}">{{ r.status | upper }}</span></td>
+    <td><a href="{{ r.slug }}/index.html">{{ r.pdf_path.name }}</a></td>
+    <td>{{ r.page_count }}</td>
+    <td>{{ r.body_font }} @ {{ r.body_font_size }}pt</td>
+    <td>{{ r.n_errors }}</td>
+    <td>{{ r.n_warnings }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<script>
+function filter(k) {
+  for (const row of document.querySelectorAll('#t tbody tr')) {
+    row.style.display = (k === 'all' || row.dataset.status === k) ? '' : 'none';
+  }
+}
+</script>
+</body>
+</html>

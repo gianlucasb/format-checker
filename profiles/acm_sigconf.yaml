@@ -1,0 +1,24 @@
+name: "ACM sigconf (letter, 2-column)"
+page:
+  size: letter
+  max_body_pages: 12
+  max_total_pages: null
+  refs_count_toward_body: false
+  appendix_counts_toward_body: false
+text_block:
+  top_margin: 75
+  bottom_margin: 75
+  left_margin: 54
+  right_margin: 54
+  columns: 2
+  column_gap: 18
+fonts:
+  body:
+    families: ["LinuxLibertine", "Libertine", "Times", "TimesNewRoman"]
+    min_size: 9.0
+    max_size: 10.0
+  caption:
+    min_size: 8.0
+tolerance_pt: 3
+anonymization:
+  required: true

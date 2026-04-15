@@ -1,0 +1,24 @@
+name: "IEEE Conference (A4, 2-column)"
+page:
+  size: A4
+  max_body_pages: 10
+  max_total_pages: null
+  refs_count_toward_body: false
+  appendix_counts_toward_body: false
+text_block:
+  top_margin: 54
+  bottom_margin: 54
+  left_margin: 54
+  right_margin: 54
+  columns: 2
+  column_gap: 18
+fonts:
+  body:
+    families: ["Times", "TimesNewRoman", "NimbusRomNo9L", "Nimbus Roman"]
+    min_size: 9.5
+    max_size: 10.5
+  caption:
+    min_size: 8.0
+tolerance_pt: 3
+anonymization:
+  required: true
