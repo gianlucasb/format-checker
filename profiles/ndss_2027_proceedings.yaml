@@ -1,0 +1,36 @@
+name: "NDSS 2027 (camera-ready / proceedings)"
+# Camera-ready variant of ndss_2027.yaml. Differences from the submission profile:
+#   - No anonymization (authors listed).
+#   - No hard body-page cap (accepted papers may be extended in proceedings).
+#   - Otherwise: same page size, margins, columns, and font rules.
+#
+# NDSS 2027 CFP formatting rules are identical to NDSS 2026, so this profile
+# matches ndss_2026_proceedings.yaml. Margins are measured from real IEEE
+# conference template papers rather than the CFP's stricter column math.
+
+page:
+  size: letter
+  max_body_pages: 20                  # generous cap; proceedings often run long
+  max_total_pages: null
+  refs_count_toward_body: false
+  appendix_counts_toward_body: false
+
+text_block:
+  top_margin: 48
+  bottom_margin: 55
+  left_margin: 45
+  right_margin: 45
+  columns: 2
+  column_gap: 18
+
+fonts:
+  body:
+    families: ["Times", "TimesNewRoman", "NimbusRomNo9L", "Nimbus Roman", "TeXGyreTermes", "TeX Gyre Termes"]
+    min_size: 10.0
+  caption:
+    min_size: 9.0
+
+tolerance_pt: 8
+
+anonymization:
+  required: false

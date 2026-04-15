@@ -1,0 +1,53 @@
+name: "NDSS 2027"
+# Derived from the NDSS 2027 Call for Papers:
+# https://www.ndss-symposium.org/ndss2027/submissions/call-for-papers/
+#
+# Formatting rules are identical to NDSS 2026:
+#   - US Letter (not A4).
+#   - 13-page main-body limit, excluding Ethics Considerations, references, and appendices.
+#   - Two-column layout. Columns must be <= 9.25 in tall and <= 3.5 in wide.
+#   - Times font, 10 pt or larger; line spacing 11 pt or larger.
+#   - Double-blind: no author names/affiliations, third-person prior work.
+#
+# Margins are derived from the column geometry:
+#   Text block:   2 * 3.5in + 0.25in gap = 7.25 in wide,  9.25 in tall
+#   Letter page:  8.5 in x 11 in = 612 x 792 pt
+#     side margins  = (612 - 7.25*72) / 2  = 45 pt
+#     top/bottom    = (792 - 9.25*72) / 2  = 63 pt
+
+page:
+  size: letter
+  max_body_pages: 13
+  max_total_pages: null              # refs + appendices + ethics: unlimited
+  refs_count_toward_body: false
+  appendix_counts_toward_body: false
+
+text_block:
+  top_margin: 63
+  bottom_margin: 63
+  left_margin: 45
+  right_margin: 45
+  columns: 2
+  column_gap: 18                      # 0.25 in
+
+fonts:
+  body:
+    families: ["Times", "TimesNewRoman", "NimbusRomNo9L", "Nimbus Roman", "TeXGyreTermes", "TeX Gyre Termes"]
+    min_size: 10.0
+    # No explicit upper bound in the CFP ("10-point or larger").
+  caption:
+    min_size: 10.0
+
+tolerance_pt: 4                       # column rule is a maximum, not an exact target
+
+anonymization:
+  required: true
+
+# The CFP describes "Ethics Considerations" as an optional section placed
+# immediately before the references. It is NOT mandatory, so it is not listed
+# under required_sections. If a future edition of NDSS makes it mandatory,
+# uncomment the block below.
+#
+# required_sections:
+#   - name: "Ethics Considerations"
+#     patterns: ["ethics considerations?", "ethical considerations?"]
