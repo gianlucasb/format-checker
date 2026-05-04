@@ -85,6 +85,36 @@ def test_narrow_margins(fixtures_dir, ieee_profile):
     assert "geometry.margins" in check_codes(g)
 
 
+def test_wide_margins(fixtures_dir, ieee_profile):
+    # Text block sits well inside the expected one — caught by the symmetric
+    # margin check (the wrong-template signal that initially missed paper14).
+    _, g, *_ = _checks(fixtures_dir / "wide_margins.pdf", ieee_profile)
+    msgs = " ".join(i.actual for i in g if i.check == "geometry.margins")
+    assert "geometry.margins" in check_codes(g)
+    assert "wider than expected" in msgs
+
+
+def test_detect_columns_clusters_two_peaks():
+    from format_checker.checks.geometry import _column_count_from_x0s
+    # 2-column page: 60 lines starting near x=54, 60 near x=318.
+    x0s = [54.0] * 60 + [318.0] * 60
+    assert _column_count_from_x0s(x0s) == 2
+
+
+def test_detect_columns_one_column():
+    from format_checker.checks.geometry import _column_count_from_x0s
+    # Single column: 60 lines, with a few outlier indents that shouldn't
+    # count as a separate column.
+    x0s = [54.0] * 60 + [64.0] * 5
+    assert _column_count_from_x0s(x0s) == 1
+
+
+def test_detect_columns_returns_zero_when_sparse():
+    from format_checker.checks.geometry import _column_count_from_x0s
+    # Below MIN_LINES_FOR_COLUMN_DETECTION → not enough signal.
+    assert _column_count_from_x0s([54.0, 318.0, 54.0]) == 0
+
+
 def test_anonymization_flags_author_block(fixtures_dir, ieee_profile):
     _, _, _, a, *_ = _checks(fixtures_dir / "has_authors.pdf", ieee_profile)
     codes = check_codes(a)

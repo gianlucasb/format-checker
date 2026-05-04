@@ -134,6 +134,14 @@ def narrow_margins(c):
     _refs_page(c)
 
 
+def wide_margins(c):
+    # Text block sits well *inside* the expected one — the diagnostic shape
+    # of submitting a paper rendered with a different (smaller) template.
+    for _ in range(8):
+        _body_page(c, margin=120)
+    _refs_page(c)
+
+
 def with_required_sections(c):
     width, height = A4
     for _ in range(6):
@@ -184,6 +192,7 @@ FIXTURES = {
     "wrong_font.pdf": wrong_font,
     "small_font.pdf": small_font,
     "narrow_margins.pdf": narrow_margins,
+    "wide_margins.pdf": wide_margins,
     "has_authors.pdf": has_authors,
     "with_required_sections.pdf": with_required_sections,
     "missing_required_sections.pdf": missing_required_sections,
