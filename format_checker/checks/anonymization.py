@@ -10,8 +10,13 @@ from ..profile import Profile
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 ORCID_RE = re.compile(r"\b\d{4}-\d{4}-\d{4}-\d{3}[\dX]\b")
 AFFIL_KEYWORDS = ("University", "Institute", "Laboratory", "Department of", "Inc.", "Corp.")
+# Flag phrases that name a prior publication as the authors' — these break
+# anonymity. Internal cross-references like "as we previously showed" or "as we
+# discussed in §3" don't reveal authorship and are intentionally not matched.
 SELF_CITE_RE = re.compile(
-    r"\b(our previous|as we showed|in our prior|we previously|our earlier)\b",
+    r"\bour\s+(?:previous|prior|earlier|past|recent)\s+"
+    r"(?:works?|papers?|studies|study|publications?|articles?|"
+    r"research|approach|method|results)\b",
     re.IGNORECASE,
 )
 

@@ -6,6 +6,7 @@ import fitz
 import pytest
 
 from format_checker.checks import anonymization, fonts, geometry, pages, sections
+from format_checker.checks.anonymization import SELF_CITE_RE
 
 
 def _checks(pdf, profile):
@@ -88,6 +89,36 @@ def test_anonymization_flags_author_block(fixtures_dir, ieee_profile):
     _, _, _, a, *_ = _checks(fixtures_dir / "has_authors.pdf", ieee_profile)
     codes = check_codes(a)
     assert "anonymization.email" in codes
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "in our previous work",
+        "Our prior paper [12] showed that",
+        "our earlier study demonstrated",
+        "as discussed in our recent publication",
+        "Our past research has shown",
+    ],
+)
+def test_self_citation_flags_prior_publication(phrase):
+    assert SELF_CITE_RE.search(phrase), f"expected to flag: {phrase!r}"
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "as we previously showed",
+        "as we showed in §3",
+        "we previously demonstrated that",
+        "we earlier described the protocol",
+        "in our paper, we discuss the threat model",
+        "we showed in Section 4 that",
+        "Our approach proceeds in three steps",
+    ],
+)
+def test_self_citation_ignores_internal_references(phrase):
+    assert SELF_CITE_RE.search(phrase) is None, f"expected to ignore: {phrase!r}"
 
 
 def test_required_sections_present(fixtures_dir, usenix_profile):
