@@ -15,8 +15,9 @@ APPENDIX_RE = re.compile(
 )
 # "Ethics Considerations" / "Ethical Considerations", optionally numbered:
 # "8 Ethics ...", "8. Ethics ...", "VIII. Ethics ...", "A. Ethics ...".
+# End-anchored so paragraph text starting with "Ethical considerations ..." won't match.
 ETHICS_RE = re.compile(
-    r"^\s*(?:[IVXLCDM]+\.?\s+|\d+\.?\s+|[A-Z]\.?\s+)?(?:ethics|ethical)\s+considerations?\b",
+    r"^\s*(?:[IVXLCDM]+\.?\s+|\d+\.?\s+|[A-Z]\.?\s+)?(?:ethics|ethical)\s+considerations?\.?\s*$",
     re.IGNORECASE,
 )
 
@@ -28,17 +29,30 @@ def _classify_pages(doc: fitz.Document, detect_ethics: bool) -> PageClassificati
     for i in range(doc.page_count):
         page = doc[i]
         blocks = page.get_text("blocks") or []
-        top_blocks = sorted(blocks, key=lambda b: b[1])[:6]
-        for b in top_blocks:
-            text = (b[4] or "").strip().splitlines()
-            for line in text[:3]:
+        # Scan every block on the page, not just the top few. Wide tables or
+        # figures at the top of a column-break page can push a "References" /
+        # "Appendix" / "Ethics Considerations" heading well below the fold.
+        for b in blocks:
+            for line in (b[4] or "").splitlines():
                 line = line.strip()
+                if not line:
+                    continue
                 if refs_start is None and REFS_RE.match(line):
                     refs_start = i
                 if appendix_start is None and APPENDIX_RE.match(line):
                     appendix_start = i
                 if detect_ethics and ethics_start is None and ETHICS_RE.match(line):
                     ethics_start = i
+    # The NDSS CFP describes Ethics Considerations as a section placed
+    # immediately *before* references. An ethics heading found later (e.g. as
+    # an appendix subsection) is not the exempt section — drop it so those
+    # pages stay classified as references/appendix.
+    if (
+        ethics_start is not None
+        and refs_start is not None
+        and ethics_start >= refs_start
+    ):
+        ethics_start = None
     pc = PageClassification()
     n = doc.page_count
     starts = [
