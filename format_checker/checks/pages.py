@@ -13,11 +13,18 @@ APPENDIX_RE = re.compile(
     r"^\s*(?:[A-Z]\.?\s+)?(?:appendix|appendices)\b",
     re.IGNORECASE,
 )
+# "Ethics Considerations" / "Ethical Considerations", optionally numbered:
+# "8 Ethics ...", "8. Ethics ...", "VIII. Ethics ...", "A. Ethics ...".
+ETHICS_RE = re.compile(
+    r"^\s*(?:[IVXLCDM]+\.?\s+|\d+\.?\s+|[A-Z]\.?\s+)?(?:ethics|ethical)\s+considerations?\b",
+    re.IGNORECASE,
+)
 
 
-def _classify_pages(doc: fitz.Document) -> PageClassification:
+def _classify_pages(doc: fitz.Document, detect_ethics: bool) -> PageClassification:
     refs_start: int | None = None
     appendix_start: int | None = None
+    ethics_start: int | None = None
     for i in range(doc.page_count):
         page = doc[i]
         blocks = page.get_text("blocks") or []
@@ -30,22 +37,31 @@ def _classify_pages(doc: fitz.Document) -> PageClassification:
                     refs_start = i
                 if appendix_start is None and APPENDIX_RE.match(line):
                     appendix_start = i
+                if detect_ethics and ethics_start is None and ETHICS_RE.match(line):
+                    ethics_start = i
     pc = PageClassification()
     n = doc.page_count
-    if refs_start is None and appendix_start is None:
+    starts = [
+        ("ethics", ethics_start),
+        ("references", refs_start),
+        ("appendix", appendix_start),
+    ]
+    starts = [(k, s) for k, s in starts if s is not None]
+    if not starts:
         pc.body = list(range(n))
         pc.ambiguous = True
         return pc
-    boundary = min(x for x in (refs_start, appendix_start) if x is not None)
-    pc.body = list(range(boundary))
-    # cover rest with refs/appendix ranges
-    cursor = boundary
-    if refs_start is not None and refs_start == boundary:
-        end = appendix_start if appendix_start is not None and appendix_start > refs_start else n
-        pc.references = list(range(cursor, end))
-        cursor = end
-    if appendix_start is not None and cursor < n:
-        pc.appendix = list(range(max(cursor, appendix_start), n))
+    starts.sort(key=lambda x: x[1])
+    pc.body = list(range(starts[0][1]))
+    for idx, (kind, s) in enumerate(starts):
+        end = starts[idx + 1][1] if idx + 1 < len(starts) else n
+        rng = list(range(s, end))
+        if kind == "references":
+            pc.references = rng
+        elif kind == "appendix":
+            pc.appendix = rng
+        elif kind == "ethics":
+            pc.ethics = rng
     return pc
 
 
@@ -69,12 +85,14 @@ def run(doc: fitz.Document, profile: Profile) -> tuple[list[Issue], PageClassifi
             )
         )
 
-    pc = _classify_pages(doc)
+    pc = _classify_pages(doc, detect_ethics=not profile.page.ethics_counts_toward_body)
     counted = list(pc.body)
     if profile.page.refs_count_toward_body:
         counted += pc.references
     if profile.page.appendix_counts_toward_body:
         counted += pc.appendix
+    if profile.page.ethics_counts_toward_body:
+        counted += pc.ethics
 
     if len(counted) > profile.page.max_body_pages:
         issues.append(

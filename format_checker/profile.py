@@ -28,6 +28,7 @@ class PageRule:
     max_total_pages: int | None
     refs_count_toward_body: bool
     appendix_counts_toward_body: bool
+    ethics_counts_toward_body: bool
 
 
 @dataclass
@@ -91,6 +92,7 @@ def load_profile(path: str | Path) -> Profile:
         max_total_pages=page_raw.get("max_total_pages"),
         refs_count_toward_body=bool(page_raw.get("refs_count_toward_body", False)),
         appendix_counts_toward_body=bool(page_raw.get("appendix_counts_toward_body", False)),
+        ethics_counts_toward_body=bool(page_raw.get("ethics_counts_toward_body", True)),
     )
     tb = data["text_block"]
     text_block = TextBlockRule(

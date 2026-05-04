@@ -24,6 +24,7 @@ class PageClassification:
     body: list[int] = field(default_factory=list)
     references: list[int] = field(default_factory=list)
     appendix: list[int] = field(default_factory=list)
+    ethics: list[int] = field(default_factory=list)
     ambiguous: bool = False
 
 

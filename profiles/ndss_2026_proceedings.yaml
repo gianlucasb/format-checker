@@ -10,6 +10,7 @@ page:
   max_total_pages: null
   refs_count_toward_body: false
   appendix_counts_toward_body: false
+  ethics_counts_toward_body: false   # mirrors the submission profile
 
 text_block:
   # Measured from accepted NDSS 2026 proceedings papers (IEEE conference

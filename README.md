@@ -58,6 +58,7 @@ page:
   max_body_pages: 13
   refs_count_toward_body: false
   appendix_counts_toward_body: false
+  ethics_counts_toward_body: false   # excludes an "Ethics Considerations" section from the body cap
 text_block:
   top_margin: 63
   bottom_margin: 63

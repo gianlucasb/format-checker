@@ -64,6 +64,14 @@ def _appendix_page(c: canvas.Canvas):
     c.showPage()
 
 
+def _ethics_page(c: canvas.Canvas, heading: str = "VIII. Ethics Considerations"):
+    width, height = A4
+    c.setFont(BODY_FONT, BODY_SIZE)
+    c.drawString(MARGIN, height - MARGIN - BODY_SIZE, heading)
+    _draw_body(c, text=BODY_LOREM)
+    c.showPage()
+
+
 def make(name: str, build):
     path = HERE / name
     c = canvas.Canvas(str(path), pagesize=A4)
@@ -90,6 +98,17 @@ def body_ok_long_appendix(c):
     _refs_page(c)
     for _ in range(5):
         _appendix_page(c)
+
+
+def body_ok_with_ethics(c):
+    # 10 body pages + 2 "Ethics Considerations" pages + refs.
+    # Under a profile that excludes ethics from the body cap, this stays at 10
+    # body pages (limit) rather than the 12 it would be without exclusion.
+    for _ in range(10):
+        _body_page(c)
+    _ethics_page(c)
+    _ethics_page(c, heading="(continued)")
+    _refs_page(c)
 
 
 def no_refs_heading(c):
@@ -160,6 +179,7 @@ FIXTURES = {
     "good.pdf": good,
     "too_many_body_pages.pdf": too_many_body_pages,
     "body_ok_long_appendix.pdf": body_ok_long_appendix,
+    "body_ok_with_ethics.pdf": body_ok_with_ethics,
     "no_refs_heading.pdf": no_refs_heading,
     "wrong_font.pdf": wrong_font,
     "small_font.pdf": small_font,

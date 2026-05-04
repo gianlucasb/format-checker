@@ -31,6 +31,7 @@
   Profile: <b>{{ report.profile_name }}</b> ·
   Pages: {{ report.page_count }}
   (body {{ report.classification.body | length }},
+  ethics {{ report.classification.ethics | length }},
   refs {{ report.classification.references | length }},
   appendix {{ report.classification.appendix | length }}) ·
   Body font: {{ report.body_font or "?" }} @ {{ report.body_font_size }}pt

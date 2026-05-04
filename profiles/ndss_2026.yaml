@@ -27,6 +27,7 @@ page:
   max_total_pages: null              # refs + appendices + ethics: unlimited
   refs_count_toward_body: false
   appendix_counts_toward_body: false
+  ethics_counts_toward_body: false   # CFP excludes Ethics Considerations from the 13-page body cap
 
 text_block:
   top_margin: 48

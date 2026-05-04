@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import dataclasses
+
 import fitz
 import pytest
 
@@ -37,6 +39,29 @@ def test_too_many_body_pages(fixtures_dir, ieee_profile):
 def test_appendix_excluded(fixtures_dir, ieee_profile):
     p, g, f, *_ = _checks(fixtures_dir / "body_ok_long_appendix.pdf", ieee_profile)
     assert "pages.max_body_pages" not in check_codes(p + g + f)
+
+
+def test_ethics_excluded_when_flag_off(fixtures_dir, ieee_profile):
+    # Same profile, but with Ethics Considerations excluded from the body cap
+    # (as in the NDSS profiles). The fixture has 10 body + 2 ethics + 1 refs;
+    # without the exclusion the body count would be 12, exceeding the cap of 10.
+    page_rule = dataclasses.replace(ieee_profile.page, ethics_counts_toward_body=False)
+    profile = dataclasses.replace(ieee_profile, page=page_rule)
+    doc = fitz.open(fixtures_dir / "body_ok_with_ethics.pdf")
+    try:
+        issues, classification = pages.run(doc, profile)
+    finally:
+        doc.close()
+    assert "pages.max_body_pages" not in check_codes(issues)
+    assert len(classification.body) == 10
+    assert len(classification.ethics) == 2
+    assert len(classification.references) == 1
+
+
+def test_ethics_counts_by_default(fixtures_dir, ieee_profile):
+    # Default behaviour: ethics_counts_toward_body=True, so body+ethics = 12 > 10.
+    p, *_ = _checks(fixtures_dir / "body_ok_with_ethics.pdf", ieee_profile)
+    assert "pages.max_body_pages" in check_codes(p)
 
 
 def test_no_refs_heading_is_ambiguous(fixtures_dir, ieee_profile):
