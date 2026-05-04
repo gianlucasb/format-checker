@@ -27,7 +27,14 @@ def render_pages(
     for issue in issues:
         if issue.page:
             by_page.setdefault(issue.page - 1, []).append(issue)
-    pages_to_render = sorted(set(by_page) | {0})
+    pages = set(by_page) | {0}
+    # For papers with no flagged pages, include a second thumbnail showing
+    # a representative body page so the chair sees both the title block and
+    # the body layout at a glance. Use the document midpoint — typically a
+    # plain body page, away from title and references.
+    if not by_page and doc.page_count > 1:
+        pages.add(doc.page_count // 2)
+    pages_to_render = sorted(pages)
     paths: list[Path] = []
     exp = profile.expected_text_rect
     for i in pages_to_render:
