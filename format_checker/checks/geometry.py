@@ -22,18 +22,46 @@ def _text_spans(page: fitz.Page):
 MIN_LINES_FOR_COLUMN_DETECTION = 20  # below this, the page is too sparse to read columns
 COLUMN_GAP_MIN = 100.0               # min x-distance between two distinct columns
 COLUMN_PEAK_MIN_FRACTION = 0.15      # a column must hold at least this fraction of body lines
+COLUMN_EXPECTED_TOLERANCE = 12.0     # pt: how close a line's x0 has to be to an expected column start
+COLUMN_MIN_LINES_AT_EXPECTED = 10    # if every expected column has at least this many lines nearby, accept
 MIN_PAGES_FOR_MARGIN_VIOLATION = 2   # a margin axis must violate on at least this many sampled pages
 
 
-def _column_count_from_x0s(x0s: list[float]) -> int:
-    """Cluster line-start x-coordinates into column peaks.
+def _expected_column_starts(profile: Profile) -> list[float]:
+    """The x-coordinate where each column begins, derived from the profile."""
+    p, t = profile.page, profile.text_block
+    n = t.columns
+    text_width = p.width_pt - t.left_margin - t.right_margin
+    col_width = (text_width - (n - 1) * t.column_gap) / n
+    return [t.left_margin + i * (col_width + t.column_gap) for i in range(n)]
 
-    Returns 0 when there aren't enough lines for a robust call. Otherwise
-    walks 4-pt buckets in descending frequency and greedily accepts those
-    at least ``COLUMN_GAP_MIN`` away from any peak already accepted.
+
+def _column_count_from_x0s(
+    x0s: list[float], expected_starts: list[float] | None = None
+) -> int:
+    """Estimate the column count from a list of line-start x-coordinates.
+
+    When ``expected_starts`` is given (the profile's column positions),
+    a page is accepted as having ``len(expected_starts)`` columns whenever
+    every expected position has at least ``COLUMN_MIN_LINES_AT_EXPECTED``
+    lines nearby. This handles math/table-heavy pages whose actual columns
+    are real but get diluted below the global frequency threshold.
+
+    Otherwise, falls back to gap-based clustering: walk 4-pt buckets in
+    descending frequency and greedily accept those at least
+    ``COLUMN_GAP_MIN`` away from any peak already accepted, with a
+    minimum frequency floor.
     """
     if len(x0s) < MIN_LINES_FOR_COLUMN_DETECTION:
         return 0
+    if expected_starts:
+        counts = [
+            sum(1 for x in x0s if abs(x - start) <= COLUMN_EXPECTED_TOLERANCE)
+            for start in expected_starts
+        ]
+        if all(c >= COLUMN_MIN_LINES_AT_EXPECTED for c in counts):
+            return len(expected_starts)
+
     threshold = max(5, len(x0s) * COLUMN_PEAK_MIN_FRACTION)
     buckets = Counter(round(x / 4) * 4 for x in x0s)
     peaks: list[int] = []
@@ -45,7 +73,7 @@ def _column_count_from_x0s(x0s: list[float]) -> int:
     return len(peaks)
 
 
-def _detect_columns(page: fitz.Page) -> int:
+def _detect_columns(page: fitz.Page, expected_starts: list[float] | None = None) -> int:
     """Estimate the number of text columns on a page (0 if too sparse)."""
     x0s: list[float] = []
     for block in page.get_text("dict").get("blocks", []):
@@ -54,7 +82,7 @@ def _detect_columns(page: fitz.Page) -> int:
         for line in block.get("lines", []):
             if any((sp.get("text") or "").strip() for sp in line.get("spans", [])):
                 x0s.append(line["bbox"][0])
-    return _column_count_from_x0s(x0s)
+    return _column_count_from_x0s(x0s, expected_starts)
 
 
 def _page_text_bbox(
@@ -96,6 +124,7 @@ def run(doc: fitz.Document, profile: Profile, body_pages: list[int]) -> list[Iss
     # Sample first, middle, last of the remaining body pages.
     sample = sorted({interior[0], interior[len(interior) // 2], interior[-1]})
     ex0, ey0, ex1, ey1 = exp
+    expected_starts = _expected_column_starts(profile)
     detected_col_counts: list[int] = []
     # Per-page: (page_index, bbox, {axis: violation_text}). Aggregated below
     # so a single anomalous page (a wide table, an embedded figure breaking
@@ -103,7 +132,7 @@ def run(doc: fitz.Document, profile: Profile, body_pages: list[int]) -> list[Iss
     per_page: list[tuple[int, tuple[float, float, float, float], dict[str, str]]] = []
     for i in sample:
         page = doc[i]
-        n_cols = _detect_columns(page)
+        n_cols = _detect_columns(page, expected_starts)
         if n_cols > 0:
             detected_col_counts.append(n_cols)
         bbox = _page_text_bbox(page, exp)

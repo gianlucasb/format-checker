@@ -123,6 +123,30 @@ def test_detect_columns_returns_zero_when_sparse():
     assert _column_count_from_x0s([54.0, 318.0, 54.0]) == 0
 
 
+def test_detect_columns_uses_expected_starts_as_prior():
+    # Math/table-heavy page: only 16 lines at the real left column and 22 at
+    # the right, with the rest scattered across many positions. With pure
+    # frequency clustering, the threshold (15% of 200 = 30) rejects both
+    # real columns. With expected_starts as a prior, the detector accepts
+    # 2 columns because both expected positions have ≥10 supporting lines.
+    x0s = [48.0] * 16 + [312.0] * 22 + [120.0] * 21 + [164.0] * 17 + [216.0] * 13 + [200.0] * 14 + list(range(50, 600, 4))
+    from format_checker.checks.geometry import _column_count_from_x0s
+    # Without the prior: no bucket clears the 15% threshold, so clustering
+    # returns 0 (no peaks). With the prior: both expected positions have
+    # ≥10 supporting lines, so we accept the expected count.
+    assert _column_count_from_x0s(x0s) == 0
+    assert _column_count_from_x0s(x0s, expected_starts=[45.0, 315.0]) == 2
+
+
+def test_detect_columns_expected_prior_rejected_when_unsupported():
+    # A truly single-column page (all lines at x=72) should NOT be accepted
+    # as 2 columns just because the profile expects 2 — neither expected
+    # position has support, so we fall back to clustering.
+    from format_checker.checks.geometry import _column_count_from_x0s
+    x0s = [72.0] * 60
+    assert _column_count_from_x0s(x0s, expected_starts=[45.0, 315.0]) == 1
+
+
 def test_anonymization_flags_author_block(fixtures_dir, ieee_profile):
     _, _, _, a, *_ = _checks(fixtures_dir / "has_authors.pdf", ieee_profile)
     codes = check_codes(a)
