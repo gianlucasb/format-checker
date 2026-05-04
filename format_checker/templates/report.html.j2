@@ -22,11 +22,22 @@
   .meta { color: #555; font-size: 0.9em; }
   .legend span { display: inline-block; margin-right: 1em; }
   .legend i { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: 4px; }
+  .cleared-badge { background: #2a9d3f; }
+  .action-btn { background: none; border: 1px solid #bbb; border-radius: 4px; padding: 4px 10px; font-size: 0.9em; cursor: pointer; margin-left: 0.5em; }
+  .action-btn:hover { background: #eef; }
+  .clear-note { color: #555; font-size: 0.9em; font-style: italic; margin-left: 0.5em; }
 </style>
 </head>
-<body>
+<body data-slug="{{ slug }}" data-hash="{{ pdf_hash }}" data-status="{{ report.status }}">
 <p><a href="../index.html">← batch index</a></p>
-<h1>{{ report.pdf_path.name }} <span class="badge {{ report.status }}">{{ report.status | upper }}</span></h1>
+<h1>{{ report.pdf_path.name }}
+  <span id="status-badge" class="badge {{ report.status }}">{{ report.status | upper }}</span>
+  <button id="clear-btn" class="action-btn" onclick="toggleClear()">clear</button>
+  <button class="action-btn" onclick="exportCleared()">export cleared.json</button>
+  <input type="file" id="import-file" accept=".json,application/json" style="display:none" onchange="importCleared(event)">
+  <button class="action-btn" onclick="document.getElementById('import-file').click()">import cleared.json</button>
+  <span id="clear-note" class="clear-note"></span>
+</h1>
 <p class="meta">
   Profile: <b>{{ report.profile_name }}</b> ·
   Pages: {{ report.page_count }}
@@ -74,5 +85,95 @@
   </figure>
   {% endfor %}
 </div>
+<script>
+const STORAGE_KEY = 'fcheck.cleared.v1';
+const slug = document.body.dataset.slug;
+const hash = document.body.dataset.hash;
+const origStatus = document.body.dataset.status;
+const key = slug + '@' + hash;
+
+function readStore() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch { return {}; }
+}
+function writeStore(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
+function applyState() {
+  const store = readStore();
+  const entry = store[key];
+  const badge = document.getElementById('status-badge');
+  const btn = document.getElementById('clear-btn');
+  const note = document.getElementById('clear-note');
+  if (entry) {
+    badge.textContent = 'CLEARED';
+    badge.classList.remove('fail', 'warn', 'pass');
+    badge.classList.add('cleared-badge');
+    btn.textContent = 'unclear';
+    note.textContent = entry.note ? '“' + entry.note + '”' : '';
+  } else {
+    badge.textContent = origStatus.toUpperCase();
+    badge.classList.remove('cleared-badge', 'fail', 'warn', 'pass');
+    badge.classList.add(origStatus);
+    btn.textContent = 'clear';
+    note.textContent = '';
+  }
+}
+
+function toggleClear() {
+  const store = readStore();
+  if (key in store) {
+    delete store[key];
+  } else {
+    store[key] = {
+      hash: hash,
+      note: '',
+      cleared_at: new Date().toISOString(),
+    };
+  }
+  writeStore(store);
+  applyState();
+}
+
+function exportCleared() {
+  const store = readStore();
+  const cleared = {};
+  if (key in store) cleared[slug] = store[key];
+  const payload = JSON.stringify({version: 1, cleared}, null, 2) + '\n';
+  const blob = new Blob([payload], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cleared.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importCleared(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      const incoming = data && data.cleared ? data.cleared : {};
+      const store = readStore();
+      let added = 0;
+      for (const [s, entry] of Object.entries(incoming)) {
+        if (!entry || !entry.hash) continue;
+        store[s + '@' + entry.hash] = entry;
+        added++;
+      }
+      writeStore(store);
+      applyState();
+      alert('Imported ' + added + ' cleared entries.');
+    } catch (e) { alert('Import failed: ' + e.message); }
+    ev.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+window.addEventListener('storage', e => { if (e.key === STORAGE_KEY) applyState(); });
+applyState();
+</script>
 </body>
 </html>

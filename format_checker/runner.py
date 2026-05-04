@@ -5,6 +5,7 @@ from pathlib import Path
 import fitz
 
 from .checks import anonymization, fonts, geometry, pages, sections
+from .cleared import hash_pdf
 from .models import PaperReport
 from .profile import Profile
 from .render import render_pages
@@ -35,6 +36,7 @@ def check_paper(pdf_path: Path, profile: Profile, out_dir: Path) -> PaperReport:
             body_font_size=body_size,
             classification=classification,
             rendered_pages=rendered,
+            pdf_hash=hash_pdf(pdf_path),
         )
         write_paper_report(report, paper_dir)
         return report

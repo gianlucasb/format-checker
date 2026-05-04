@@ -12,42 +12,203 @@
   .pass { background: #2a9d3f; }
   .warn { background: #e08e00; }
   .fail { background: #c62828; }
+  .cleared-badge { background: #2a9d3f; }
+  tr.cleared td { background: #f4faf5; }
+  tr.cleared { color: #777; }
+  tr.cleared a { color: #2a7a3a; }
   .meta { color: #666; font-size: 0.9em; }
-  .filters button { margin-right: 6px; padding: 4px 10px; }
+  .filters button, .actions button { margin-right: 6px; padding: 4px 10px; }
+  .actions { margin: 0.5em 0 1em; }
+  .action-btn { background: none; border: 1px solid #bbb; border-radius: 4px; padding: 2px 8px; font-size: 0.85em; cursor: pointer; }
+  .action-btn:hover { background: #eef; }
+  .note { color: #555; font-size: 0.85em; font-style: italic; }
 </style>
 </head>
 <body>
 <h1>Format check — batch report</h1>
-<p class="meta">Profile: <b>{{ profile_name }}</b> · {{ reports | length }} papers</p>
+<p class="meta">Profile: <b>{{ profile_name }}</b> · {{ reports | length }} papers
+  · <span id="cleared-count">0</span> cleared</p>
 <p class="filters">
   <button onclick="filter('all')">all</button>
   <button onclick="filter('fail')">fail</button>
   <button onclick="filter('warn')">warn</button>
   <button onclick="filter('pass')">pass</button>
+  <button onclick="toggleCleared()" id="toggle-cleared-btn">hide cleared</button>
+</p>
+<p class="actions">
+  <button onclick="exportCleared()">Export cleared.json</button>
+  <input type="file" id="import-file" accept=".json,application/json" style="display:none" onchange="importCleared(event)">
+  <button onclick="document.getElementById('import-file').click()">Import cleared.json</button>
 </p>
 <table id="t">
   <thead><tr>
-    <th>Status</th><th>Paper</th><th>Pages</th><th>Body font</th><th>Errors</th><th>Warnings</th>
+    <th>Status</th><th>Paper</th><th>Pages</th><th>Body font</th><th>Errors</th><th>Warnings</th><th></th>
   </tr></thead>
   <tbody>
   {% for r in reports %}
-  <tr data-status="{{ r.status }}">
-    <td><span class="badge {{ r.status }}">{{ r.status | upper }}</span></td>
-    <td><a href="{{ r.slug }}/index.html">{{ r.pdf_path.name }}</a></td>
+  <tr data-status="{{ r.status }}" data-slug="{{ r.slug }}" data-hash="{{ r.pdf_hash }}" data-idx="{{ loop.index0 }}">
+    <td><span class="badge status-badge {{ r.status }}">{{ r.status | upper }}</span></td>
+    <td>
+      <a href="{{ r.slug }}/index.html">{{ r.pdf_path.name }}</a>
+      <div class="note"></div>
+    </td>
     <td>{{ r.page_count }}</td>
     <td>{{ r.body_font }} @ {{ r.body_font_size }}pt</td>
     <td>{{ r.n_errors }}</td>
     <td>{{ r.n_warnings }}</td>
+    <td><button class="action-btn clear-btn" onclick="toggleClear(this)">clear</button></td>
   </tr>
   {% endfor %}
   </tbody>
 </table>
+<script id="cleared-data" type="application/json">{{ cleared_json | safe }}</script>
 <script>
-function filter(k) {
+const STORAGE_KEY = 'fcheck.cleared.v1';
+let hideCleared = false;
+
+function readStore() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch { return {}; }
+}
+function writeStore(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
+// Seed localStorage from embedded data only for keys it doesn't already have.
+function bootstrap() {
+  const embedded = JSON.parse(document.getElementById('cleared-data').textContent || '{}');
+  const local = readStore();
+  let changed = false;
+  for (const [slug, entry] of Object.entries(embedded)) {
+    const k = slug + '@' + entry.hash;
+    if (!(k in local)) { local[k] = entry; changed = true; }
+  }
+  if (changed) writeStore(local);
+}
+
+function rowKey(row) { return row.dataset.slug + '@' + row.dataset.hash; }
+function statusOrder(s) { return {fail: 0, warn: 1, pass: 2}[s] ?? 9; }
+
+function applyState() {
+  const store = readStore();
+  const tbody = document.querySelector('#t tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  let nCleared = 0;
+  for (const row of rows) {
+    const entry = store[rowKey(row)];
+    const badge = row.querySelector('.status-badge');
+    const btn = row.querySelector('.clear-btn');
+    const note = row.querySelector('.note');
+    if (entry) {
+      row.classList.add('cleared');
+      badge.textContent = 'CLEARED';
+      badge.classList.remove('fail', 'warn', 'pass');
+      badge.classList.add('cleared-badge');
+      btn.textContent = 'unclear';
+      note.textContent = entry.note ? '“' + entry.note + '”' : '';
+      nCleared++;
+    } else {
+      row.classList.remove('cleared');
+      const orig = row.dataset.status;
+      badge.textContent = orig.toUpperCase();
+      badge.classList.remove('cleared-badge', 'fail', 'warn', 'pass');
+      badge.classList.add(orig);
+      btn.textContent = 'clear';
+      note.textContent = '';
+    }
+  }
+  // Sort: not-cleared (by status, then original index), then cleared.
+  rows.sort((a, b) => {
+    const ac = a.classList.contains('cleared') ? 1 : 0;
+    const bc = b.classList.contains('cleared') ? 1 : 0;
+    if (ac !== bc) return ac - bc;
+    const sa = statusOrder(a.dataset.status), sb = statusOrder(b.dataset.status);
+    if (sa !== sb) return sa - sb;
+    return parseInt(a.dataset.idx) - parseInt(b.dataset.idx);
+  });
+  rows.forEach(r => tbody.appendChild(r));
+  document.getElementById('cleared-count').textContent = nCleared;
+  applyVisibility();
+}
+
+let currentFilter = 'all';
+function filter(k) { currentFilter = k; applyVisibility(); }
+function toggleCleared() {
+  hideCleared = !hideCleared;
+  document.getElementById('toggle-cleared-btn').textContent = hideCleared ? 'show cleared' : 'hide cleared';
+  applyVisibility();
+}
+function applyVisibility() {
   for (const row of document.querySelectorAll('#t tbody tr')) {
-    row.style.display = (k === 'all' || row.dataset.status === k) ? '' : 'none';
+    const isCleared = row.classList.contains('cleared');
+    const statusOk = currentFilter === 'all' || row.dataset.status === currentFilter;
+    const clearedOk = !(hideCleared && isCleared);
+    row.style.display = (statusOk && clearedOk) ? '' : 'none';
   }
 }
+
+function toggleClear(btn) {
+  const row = btn.closest('tr');
+  const k = rowKey(row);
+  const store = readStore();
+  if (k in store) {
+    delete store[k];
+  } else {
+    store[k] = {
+      hash: row.dataset.hash,
+      note: '',
+      cleared_at: new Date().toISOString(),
+    };
+  }
+  writeStore(store);
+  applyState();
+}
+
+function exportCleared() {
+  // Only export entries whose slug is present in this report.
+  const slugs = new Set(Array.from(document.querySelectorAll('#t tbody tr')).map(r => r.dataset.slug));
+  const store = readStore();
+  const cleared = {};
+  for (const [k, v] of Object.entries(store)) {
+    const slug = k.split('@')[0];
+    if (slugs.has(slug)) cleared[slug] = v;
+  }
+  const payload = JSON.stringify({version: 1, cleared}, null, 2) + '\n';
+  const blob = new Blob([payload], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cleared.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importCleared(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      const incoming = data && data.cleared ? data.cleared : {};
+      const slugs = new Set(Array.from(document.querySelectorAll('#t tbody tr')).map(r => r.dataset.slug));
+      const store = readStore();
+      let added = 0;
+      for (const [slug, entry] of Object.entries(incoming)) {
+        if (!slugs.has(slug) || !entry || !entry.hash) continue;
+        store[slug + '@' + entry.hash] = entry;
+        added++;
+      }
+      writeStore(store);
+      applyState();
+      alert('Imported ' + added + ' cleared entries.');
+    } catch (e) { alert('Import failed: ' + e.message); }
+    ev.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+window.addEventListener('storage', e => { if (e.key === STORAGE_KEY) applyState(); });
+bootstrap();
+applyState();
 </script>
 </body>
 </html>

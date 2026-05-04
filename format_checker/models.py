@@ -38,6 +38,7 @@ class PaperReport:
     body_font_size: float = 0.0
     classification: PageClassification = field(default_factory=PageClassification)
     rendered_pages: list[Path] = field(default_factory=list)
+    pdf_hash: str = ""
 
     @property
     def n_errors(self) -> int:
