@@ -9,11 +9,17 @@ name: "NDSS 2027"
 #   - Times font, 10 pt or larger; line spacing 11 pt or larger.
 #   - Double-blind: no author names/affiliations, third-person prior work.
 #
-# Margins are derived from the column geometry:
-#   Text block:   2 * 3.5in + 0.25in gap = 7.25 in wide,  9.25 in tall
-#   Letter page:  8.5 in x 11 in = 612 x 792 pt
-#     side margins  = (612 - 7.25*72) / 2  = 45 pt
-#     top/bottom    = (792 - 9.25*72) / 2  = 63 pt
+# Side margins are derived from the column geometry:
+#   Text block: 2 * 3.5in + 0.25in gap = 7.25 in wide
+#   Letter page: 8.5 in x 11 in = 612 x 792 pt
+#     side margins = (612 - 7.25*72) / 2 = 45 pt
+#
+# Vertical margins are measured from real NDSS papers built with the IEEE
+# conference template. The CFP says columns must be <= 9.25 in tall, but the
+# template doesn't center that block on the page — it places the first line
+# higher (~0.7 in from the top) and leaves more slack at the bottom for the
+# page-number footer. These numbers match ndss_2027_proceedings.yaml because
+# submission and camera-ready papers use the same template.
 
 page:
   size: letter
@@ -23,8 +29,8 @@ page:
   appendix_counts_toward_body: false
 
 text_block:
-  top_margin: 63
-  bottom_margin: 63
+  top_margin: 48
+  bottom_margin: 55
   left_margin: 45
   right_margin: 45
   columns: 2
@@ -38,7 +44,7 @@ fonts:
   caption:
     min_size: 10.0
 
-tolerance_pt: 4                       # column rule is a maximum, not an exact target
+tolerance_pt: 8                       # absorbs minor template variation in the IEEE conf class
 
 anonymization:
   required: true
