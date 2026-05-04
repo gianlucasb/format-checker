@@ -19,12 +19,10 @@ def _text_spans(page: fitz.Page):
                     yield span
 
 
-EDGE_BAND = 80.0   # pt from top/bottom: "near the page edge"
-SHORT_BLOCK_CHARS = 120  # blocks shorter than this near an edge are treated as headers/footers
-
 MIN_LINES_FOR_COLUMN_DETECTION = 20  # below this, the page is too sparse to read columns
 COLUMN_GAP_MIN = 100.0               # min x-distance between two distinct columns
-COLUMN_PEAK_MIN_FRACTION = 0.05      # a column must contain at least this fraction of body lines
+COLUMN_PEAK_MIN_FRACTION = 0.15      # a column must hold at least this fraction of body lines
+MIN_PAGES_FOR_MARGIN_VIOLATION = 2   # a margin axis must violate on at least this many sampled pages
 
 
 def _column_count_from_x0s(x0s: list[float]) -> int:
@@ -59,23 +57,26 @@ def _detect_columns(page: fitz.Page) -> int:
     return _column_count_from_x0s(x0s)
 
 
-def _page_text_bbox(page: fitz.Page) -> tuple[float, float, float, float] | None:
+def _page_text_bbox(
+    page: fitz.Page, expected_rect: tuple[float, float, float, float]
+) -> tuple[float, float, float, float] | None:
     """Bounding box of the main text, ignoring running headers, page numbers, etc.
 
-    Running headers/footers are short blocks (page number, venue banner, running title)
-    that sit near the top or bottom edge. Body paragraphs and footnotes are long
-    multi-line blocks, so a char-count + position filter reliably separates them.
+    A block whose *center* falls outside the profile's expected text rect is
+    treated as a header/footer/sidebar and excluded — this is precise (it's
+    literally the definition of "outside the body region") and avoids the
+    char-count heuristic that mis-classified short table captions sitting
+    right at the top margin as headers.
     """
-    page_h = page.rect.height
+    ex0, ey0, ex1, ey1 = expected_rect
     xs0, ys0, xs1, ys1 = [], [], [], []
     for block in page.get_text("blocks") or []:
         x0, y0, x1, y1, text, *_ = block
         if not text or not text.strip():
             continue
-        n_chars = len(text.strip())
-        y_center = (y0 + y1) / 2
-        near_edge = y_center < EDGE_BAND or y_center > page_h - EDGE_BAND
-        if near_edge and n_chars < SHORT_BLOCK_CHARS:
+        cx = (x0 + x1) / 2
+        cy = (y0 + y1) / 2
+        if cx < ex0 or cx > ex1 or cy < ey0 or cy > ey1:
             continue
         xs0.append(x0); ys0.append(y0); xs1.append(x1); ys1.append(y1)
     if not xs0:
@@ -93,52 +94,65 @@ def run(doc: fitz.Document, profile: Profile, body_pages: list[int]) -> list[Iss
     # obey the body text-block geometry.
     interior = [p for p in pages_to_check if p != 0] or pages_to_check
     # Sample first, middle, last of the remaining body pages.
-    sample = {interior[0], interior[len(interior) // 2], interior[-1]}
+    sample = sorted({interior[0], interior[len(interior) // 2], interior[-1]})
+    ex0, ey0, ex1, ey1 = exp
     detected_col_counts: list[int] = []
-    for i in sorted(sample):
+    # Per-page: (page_index, bbox, {axis: violation_text}). Aggregated below
+    # so a single anomalous page (a wide table, an embedded figure breaking
+    # the column flow) can't condemn an otherwise well-formatted paper.
+    per_page: list[tuple[int, tuple[float, float, float, float], dict[str, str]]] = []
+    for i in sample:
         page = doc[i]
         n_cols = _detect_columns(page)
         if n_cols > 0:
             detected_col_counts.append(n_cols)
-        bbox = _page_text_bbox(page)
+        bbox = _page_text_bbox(page, exp)
         if bbox is None:
             continue
-        ex0, ey0, ex1, ey1 = exp
         x0, y0, x1, y1 = bbox
-        violations = []
-        # Left edge — symmetric: text bleeding left, OR sitting too far right
-        # (margin wider than expected, classic "wrong template" signal).
+        v: dict[str, str] = {}
+        # Left/top/right are checked symmetrically — text bleeding outside the
+        # expected block (narrow margin) AND text sitting well inside it (wide
+        # margin, classic wrong-template signal). Bottom is outward-only since
+        # legitimate pages routinely end short of the bottom margin.
         if x0 + tol < ex0:
-            violations.append(f"left {x0:.0f} < {ex0:.0f}")
+            v["left"] = f"left {x0:.0f} < {ex0:.0f}"
         elif x0 - tol > ex0:
-            violations.append(f"left {x0:.0f} > {ex0:.0f} (margin wider than expected)")
-        # Top edge — symmetric.
+            v["left"] = f"left {x0:.0f} > {ex0:.0f} (margin wider than expected)"
         if y0 + tol < ey0:
-            violations.append(f"top {y0:.0f} < {ey0:.0f}")
+            v["top"] = f"top {y0:.0f} < {ey0:.0f}"
         elif y0 - tol > ey0:
-            violations.append(f"top {y0:.0f} > {ey0:.0f} (margin wider than expected)")
-        # Right edge — symmetric.
+            v["top"] = f"top {y0:.0f} > {ey0:.0f} (margin wider than expected)"
         if x1 - tol > ex1:
-            violations.append(f"right {x1:.0f} > {ex1:.0f}")
+            v["right"] = f"right {x1:.0f} > {ex1:.0f}"
         elif x1 + tol < ex1:
-            violations.append(f"right {x1:.0f} < {ex1:.0f} (margin wider than expected)")
-        # Bottom edge — outward only. Pages that legitimately end mid-column
-        # (end of a section, figure on the next page) routinely fall short
-        # of the expected bottom, so an inward check would false-positive.
+            v["right"] = f"right {x1:.0f} < {ex1:.0f} (margin wider than expected)"
         if y1 - tol > ey1:
-            violations.append(f"bottom {y1:.0f} > {ey1:.0f}")
-        if violations:
-            issues.append(
-                Issue(
-                    severity="error",
-                    check="geometry.margins",
-                    message="Text block does not match the expected geometry.",
-                    expected=f"bbox {ex0:.0f},{ey0:.0f},{ex1:.0f},{ey1:.0f}",
-                    actual="; ".join(violations),
-                    page=i + 1,
-                    bbox=bbox,
-                )
+            v["bottom"] = f"bottom {y1:.0f} > {ey1:.0f}"
+        if v:
+            per_page.append((i, bbox, v))
+
+    # Only report axes that violated on at least MIN_PAGES_FOR_MARGIN_VIOLATION
+    # sampled pages. One-off anomalies don't survive this filter.
+    axis_hits: Counter[str] = Counter()
+    for _, _, v in per_page:
+        axis_hits.update(v.keys())
+    confirmed_axes = {a for a, n in axis_hits.items() if n >= MIN_PAGES_FOR_MARGIN_VIOLATION}
+    for i, bbox, v in per_page:
+        confirmed = {a: t for a, t in v.items() if a in confirmed_axes}
+        if not confirmed:
+            continue
+        issues.append(
+            Issue(
+                severity="error",
+                check="geometry.margins",
+                message="Text block does not match the expected geometry.",
+                expected=f"bbox {ex0:.0f},{ey0:.0f},{ex1:.0f},{ey1:.0f}",
+                actual="; ".join(confirmed.values()),
+                page=i + 1,
+                bbox=bbox,
             )
+        )
 
     # Column-count check: majority vote across the sampled pages.
     if detected_col_counts:

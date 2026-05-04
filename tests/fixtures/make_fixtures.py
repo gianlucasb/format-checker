@@ -142,6 +142,15 @@ def wide_margins(c):
     _refs_page(c)
 
 
+def one_bad_page(c):
+    # 8 body pages: only the middle one has wide margins (e.g. the result of
+    # a single embedded oddly-laid-out figure). With the multi-page evidence
+    # rule the geometry check should NOT flag this paper.
+    for idx in range(8):
+        _body_page(c, margin=120 if idx == 3 else MARGIN)
+    _refs_page(c)
+
+
 def with_required_sections(c):
     width, height = A4
     for _ in range(6):
@@ -193,6 +202,7 @@ FIXTURES = {
     "small_font.pdf": small_font,
     "narrow_margins.pdf": narrow_margins,
     "wide_margins.pdf": wide_margins,
+    "one_bad_page.pdf": one_bad_page,
     "has_authors.pdf": has_authors,
     "with_required_sections.pdf": with_required_sections,
     "missing_required_sections.pdf": missing_required_sections,

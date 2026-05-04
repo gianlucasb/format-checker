@@ -94,6 +94,14 @@ def test_wide_margins(fixtures_dir, ieee_profile):
     assert "wider than expected" in msgs
 
 
+def test_single_bad_page_is_not_flagged(fixtures_dir, ieee_profile):
+    # Only the middle body page has a margin anomaly — likely a one-off
+    # figure or table breaking the column flow, not a wrong template.
+    # The multi-page evidence rule should suppress this.
+    _, g, *_ = _checks(fixtures_dir / "one_bad_page.pdf", ieee_profile)
+    assert "geometry.margins" not in check_codes(g)
+
+
 def test_detect_columns_clusters_two_peaks():
     from format_checker.checks.geometry import _column_count_from_x0s
     # 2-column page: 60 lines starting near x=54, 60 near x=318.
