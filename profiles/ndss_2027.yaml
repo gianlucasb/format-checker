@@ -28,6 +28,7 @@ page:
   refs_count_toward_body: false
   appendix_counts_toward_body: false
   ethics_counts_toward_body: false   # CFP excludes Ethics Considerations from the 13-page body cap
+  min_body_pages_warn: 7             # warn on suspiciously short submissions (likely incomplete)
 
 text_block:
   top_margin: 48

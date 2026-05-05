@@ -29,6 +29,7 @@ class PageRule:
     refs_count_toward_body: bool
     appendix_counts_toward_body: bool
     ethics_counts_toward_body: bool
+    min_body_pages_warn: int | None
 
 
 @dataclass
@@ -93,6 +94,7 @@ def load_profile(path: str | Path) -> Profile:
         refs_count_toward_body=bool(page_raw.get("refs_count_toward_body", False)),
         appendix_counts_toward_body=bool(page_raw.get("appendix_counts_toward_body", False)),
         ethics_counts_toward_body=bool(page_raw.get("ethics_counts_toward_body", True)),
+        min_body_pages_warn=page_raw.get("min_body_pages_warn"),
     )
     tb = data["text_block"]
     text_block = TextBlockRule(

@@ -37,6 +37,39 @@ def test_too_many_body_pages(fixtures_dir, ieee_profile):
     assert "pages.max_body_pages" in check_codes(p)
 
 
+def test_short_paper_warns_when_threshold_set(fixtures_dir, ieee_profile):
+    # good.pdf has 8 body pages. With min_body_pages_warn=9, 8 <= 9 → warn.
+    page_rule = dataclasses.replace(ieee_profile.page, min_body_pages_warn=9)
+    profile = dataclasses.replace(ieee_profile, page=page_rule)
+    import fitz
+    doc = fitz.open(fixtures_dir / "good.pdf")
+    try:
+        issues, _ = pages.run(doc, profile)
+    finally:
+        doc.close()
+    short = [i for i in issues if i.check == "pages.too_short"]
+    assert short and short[0].severity == "warning"
+
+
+def test_short_paper_does_not_warn_above_threshold(fixtures_dir, ieee_profile):
+    # good.pdf has 8 body pages. With min_body_pages_warn=7, 8 > 7 → no warn.
+    page_rule = dataclasses.replace(ieee_profile.page, min_body_pages_warn=7)
+    profile = dataclasses.replace(ieee_profile, page=page_rule)
+    import fitz
+    doc = fitz.open(fixtures_dir / "good.pdf")
+    try:
+        issues, _ = pages.run(doc, profile)
+    finally:
+        doc.close()
+    assert "pages.too_short" not in check_codes(issues)
+
+
+def test_short_paper_skipped_when_threshold_unset(fixtures_dir, ieee_profile):
+    # Default: min_body_pages_warn=None → check is skipped entirely.
+    p, *_ = _checks(fixtures_dir / "good.pdf", ieee_profile)
+    assert "pages.too_short" not in check_codes(p)
+
+
 def test_appendix_excluded(fixtures_dir, ieee_profile):
     p, g, f, *_ = _checks(fixtures_dir / "body_ok_long_appendix.pdf", ieee_profile)
     assert "pages.max_body_pages" not in check_codes(p + g + f)

@@ -118,6 +118,19 @@ def run(doc: fitz.Document, profile: Profile) -> tuple[list[Issue], PageClassifi
                 actual=str(len(counted)),
             )
         )
+    if (
+        profile.page.min_body_pages_warn is not None
+        and len(counted) <= profile.page.min_body_pages_warn
+    ):
+        issues.append(
+            Issue(
+                severity="warning",
+                check="pages.too_short",
+                message="Main content is unusually short — verify the submission is complete.",
+                expected=f"> {profile.page.min_body_pages_warn}",
+                actual=str(len(counted)),
+            )
+        )
     if profile.page.max_total_pages and doc.page_count > profile.page.max_total_pages:
         issues.append(
             Issue(
