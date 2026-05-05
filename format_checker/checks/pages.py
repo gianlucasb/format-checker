@@ -8,11 +8,17 @@ from ..models import Issue, PageClassification
 from ..profile import Profile
 
 REFS_RE = re.compile(r"^\s*references\s*$", re.IGNORECASE)
-# "Appendix", "Appendices", "Appendix A", "A. Appendix", "A Appendix".
+# "Appendix", "Appendices", "Appendix A", "Appendix A:", "A. Appendix".
+# Must be followed by whitespace, a colon, or end-of-line — so an inline
+# citation rendered as "Appendix. A. for ..." (period right after the word)
+# can't match.
 APPENDIX_RE = re.compile(
-    r"^\s*(?:[A-Z]\.?\s+)?(?:appendix|appendices)\b",
+    r"^\s*(?:[A-Z]\.?\s+)?(?:appendix|appendices)(?:\s|:|$)",
     re.IGNORECASE,
 )
+# Heading blocks are short by nature (just the heading + maybe a subtitle).
+# Anything larger is body text that happens to mention the heading word.
+HEADING_BLOCK_MAX_CHARS = 200
 # "Ethics Considerations" / "Ethical Considerations", optionally numbered:
 # "8 Ethics ...", "8. Ethics ...", "VIII. Ethics ...", "A. Ethics ...".
 # End-anchored so paragraph text starting with "Ethical considerations ..." won't match.
@@ -29,20 +35,25 @@ def _classify_pages(doc: fitz.Document, detect_ethics: bool) -> PageClassificati
     for i in range(doc.page_count):
         page = doc[i]
         blocks = page.get_text("blocks") or []
-        # Scan every block on the page, not just the top few. Wide tables or
-        # figures at the top of a column-break page can push a "References" /
-        # "Appendix" / "Ethics Considerations" heading well below the fold.
+        # Scan every block on the page (so a "References" pushed below a
+        # wide top-of-page table still gets seen) but only inspect the
+        # first non-empty line of each block, and skip blocks that are too
+        # large to plausibly be a heading. Body paragraphs that happen to
+        # mention "Appendix C ..." or "Ethical considerations ..." mid-flow
+        # don't get treated as section starts.
         for b in blocks:
-            for line in (b[4] or "").splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                if refs_start is None and REFS_RE.match(line):
-                    refs_start = i
-                if appendix_start is None and APPENDIX_RE.match(line):
-                    appendix_start = i
-                if detect_ethics and ethics_start is None and ETHICS_RE.match(line):
-                    ethics_start = i
+            text = (b[4] or "").strip()
+            if not text or len(text) > HEADING_BLOCK_MAX_CHARS:
+                continue
+            first_line = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
+            if not first_line:
+                continue
+            if refs_start is None and REFS_RE.match(first_line):
+                refs_start = i
+            if appendix_start is None and APPENDIX_RE.match(first_line):
+                appendix_start = i
+            if detect_ethics and ethics_start is None and ETHICS_RE.match(first_line):
+                ethics_start = i
     # The NDSS CFP describes Ethics Considerations as a section placed
     # immediately *before* references. An ethics heading found later (e.g. as
     # an appendix subsection) is not the exempt section — drop it so those

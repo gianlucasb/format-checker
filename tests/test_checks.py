@@ -103,6 +103,34 @@ def test_no_refs_heading_is_ambiguous(fixtures_dir, ieee_profile):
     assert "pages.section_detection" in check_codes(p)
 
 
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "Appendix A",
+        "Appendix",
+        "Appendix B: Detailed Algorithm",
+        "APPENDIX C",
+        "A. Appendix",
+    ],
+)
+def test_appendix_regex_matches_real_headings(phrase):
+    from format_checker.checks.pages import APPENDIX_RE
+    assert APPENDIX_RE.match(phrase), f"expected match: {phrase!r}"
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "Appendix. A.",                          # citation rendered with period
+        "Appendix. A. for the formal definition",
+        "Appendix. B.",
+    ],
+)
+def test_appendix_regex_rejects_inline_citations(phrase):
+    from format_checker.checks.pages import APPENDIX_RE
+    assert APPENDIX_RE.match(phrase) is None, f"expected no match: {phrase!r}"
+
+
 def test_wrong_font_family(fixtures_dir, ieee_profile):
     _, _, f, *_ = _checks(fixtures_dir / "wrong_font.pdf", ieee_profile)
     assert "fonts.body_family" in check_codes(f)

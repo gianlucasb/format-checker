@@ -21,10 +21,10 @@ BODY_FONT = "Times-Roman"
 BODY_SIZE = 10
 
 
-def _draw_body(c: canvas.Canvas, font=BODY_FONT, size=BODY_SIZE, margin=MARGIN, text=BODY_LOREM):
+def _draw_body(c: canvas.Canvas, font=BODY_FONT, size=BODY_SIZE, margin=MARGIN, text=BODY_LOREM, y_offset=0):
     width, height = A4
     c.setFont(font, size)
-    y = height - margin - size
+    y = height - margin - size - y_offset
     leading = size * 1.2
     max_width = width - 2 * margin
     words = text.split()
@@ -60,7 +60,8 @@ def _appendix_page(c: canvas.Canvas):
     width, height = A4
     c.setFont(BODY_FONT, BODY_SIZE)
     c.drawString(MARGIN, height - MARGIN - BODY_SIZE, "Appendix A")
-    _draw_body(c, text=BODY_LOREM)
+    # Gap below the heading so PyMuPDF blocks it separately from the body.
+    _draw_body(c, text=BODY_LOREM, y_offset=30)
     c.showPage()
 
 
@@ -68,7 +69,7 @@ def _ethics_page(c: canvas.Canvas, heading: str = "VIII. Ethics Considerations")
     width, height = A4
     c.setFont(BODY_FONT, BODY_SIZE)
     c.drawString(MARGIN, height - MARGIN - BODY_SIZE, heading)
-    _draw_body(c, text=BODY_LOREM)
+    _draw_body(c, text=BODY_LOREM, y_offset=30)
     c.showPage()
 
 
