@@ -41,5 +41,24 @@ def check(target: Path, profile_path: Path, out_dir: Path):
     click.echo(f"\nwrote {out_dir / 'index.html'}")
 
 
+@main.command("print")
+@click.argument("out_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+def print_cmd(out_dir: Path):
+    """Render each per-paper HTML report under OUT_DIR to a PDF.
+
+    Requires the [print] extra and a one-time `playwright install chromium`.
+    """
+    from .printpdf import render_reports
+    try:
+        paths = render_reports(out_dir)
+    except RuntimeError as e:
+        raise click.ClickException(str(e))
+    if not paths:
+        click.echo(f"No per-paper reports found under {out_dir}")
+        return
+    for p in paths:
+        click.echo(f"wrote {p}")
+
+
 if __name__ == "__main__":
     main()
