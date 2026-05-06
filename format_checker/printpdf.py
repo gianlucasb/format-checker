@@ -25,8 +25,10 @@ PDF_OPTIONS = {
 def _discover_html_files(out_dir: Path) -> list[tuple[Path, Path]]:
     """Return ``(html, pdf)`` pairs — one per per-paper directory under out_dir.
 
-    The batch ``index.html`` at the top level is excluded; this command is
-    about archiving the individual paper reports.
+    The PDF is named after the directory (e.g. ``foo/foo.pdf``) so it stays
+    identifiable when moved or attached to email. The batch ``index.html``
+    at the top level is excluded; this command is for archiving individual
+    paper reports.
     """
     pairs: list[tuple[Path, Path]] = []
     for sub in sorted(out_dir.iterdir()):
@@ -34,7 +36,7 @@ def _discover_html_files(out_dir: Path) -> list[tuple[Path, Path]]:
             continue
         html = sub / "index.html"
         if html.exists():
-            pairs.append((html, sub / "report.pdf"))
+            pairs.append((html, sub / f"{sub.name}-format-check.pdf"))
     return pairs
 
 

@@ -24,8 +24,8 @@ def test_discover_html_files_returns_per_paper_pairs(tmp_path):
 
     pairs = _discover_html_files(tmp_path)
     assert pairs == [
-        (tmp_path / "paper-a" / "index.html", tmp_path / "paper-a" / "report.pdf"),
-        (tmp_path / "paper-c" / "index.html", tmp_path / "paper-c" / "report.pdf"),
+        (tmp_path / "paper-a" / "index.html", tmp_path / "paper-a" / "paper-a-format-check.pdf"),
+        (tmp_path / "paper-c" / "index.html", tmp_path / "paper-c" / "paper-c-format-check.pdf"),
     ]
 
 
